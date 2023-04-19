@@ -1,0 +1,8 @@
+keyboard==0.13.5
+webdriver_manager==3.4.2
+pywhatkit==5.1
+selenium==3.141.0
+web3==5.23.1
+beautifulsoup4==4.9.3
+schedule==1.1.0
+eth_abi==2.2.0

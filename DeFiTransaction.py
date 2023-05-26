@@ -30,13 +30,13 @@ from web3 import Web3
 
 # from webdriver_manager.firefox import GeckoDriverManager
 # from webdriver_manager.chrome import ChromeDriverManager
-from bep20Token import BEP20Token
+from erc20Token import ERC20Token
 from BuyTokens import buyTokens
 
 # from CommandPromptVisuals import changeCmdPosition
 from SellTokens import sellTokens
 from ThreadingWithReturn import ThreadWithResult
-from abi import tokenAbi, bep20TokenAbi
+from abi import tokenAbi, erc20TokenAbi
 
 # from sendWhatsappMessage import sendMessage
 import config as config
@@ -48,16 +48,16 @@ from general import *
 
 # from apeswapPrice import apeswapPriceQuery
 
-bsc = config.RPC_URL
-web3 = Web3(Web3.HTTPProvider(bsc))
+arb = config.RPC_URL
+web3 = Web3(Web3.HTTPProvider(arb))
 if web3.is_connected():
-    print("Connected to BSC")
+    print("Connected to Arbitrum Network")
 
 # Important Addresses
-arenaAddress = config.ARENA_ADDRESS
-TokenToSellAddress = web3.to_checksum_address(arenaAddress)
-CAKE_Address = web3.to_checksum_address(config.CAKE_ADDRESS)
-apeswapRouterAddress = web3.to_checksum_address(config.APESWAP_ROUTER_ADDRESS)
+XPEPE_Address = web3.to_checksum_address(config.XPEPE_ADDRESS)
+USDT_Address = web3.to_checksum_address(config.USDT_ADDRESS)
+USDT_Proxy_Address = web3.to_checksum_address(config.USDT_PROXY_ADDRESS)
+sushiswapRouterAddress = web3.to_checksum_address(config.SUSHISWAP_ROUTER_ADDRESS)
 walletAddresses = config.YOUR_WALLET_ADDRESS
 TradingTokenDecimal = None
 
@@ -68,11 +68,6 @@ tradeCount = 0
 # Trading volume cap
 tradeVolume = config.TOTAL_TRADE_VOLUME
 
-# latest bought
-latestBuyAreaWithCake = 0
-latestSoldArenaForCake = 0
-
-
 # init logging
 now = datetime.datetime.now()
 logFileName = "./log/" + now.strftime("%d%m%Y-%H%M-%S")
@@ -82,32 +77,16 @@ else:
     os.mkdir("log")
     logging.basicConfig(filename=f"{logFileName}.log", level=logging.INFO)
 
-# # job, unused change to window task scheduler
-# tradeCycleJob ={}
+# job, unused change to window task scheduler
+tradeCycleJob = {}
 
-# variables to keep track of token balance
-# initial token balance
-initialBNB = 0
-initialCAKE = 0
-initialARENA = 0
-
-# balance before each trade
-startBNB = 0
-startCAKE = 0
-startARENA = 0
-
-# balance after each trade
-afterBNB = 0
-afterCAKE = 0
-afterARENA = 0
-
-totalCakeSell = 0
-totalARENABought = 0
+totalUsdtSell = 0
+totalXpepeBought = 0
 totalRejectedAmountBuy = 0
-totalBNBUsedBuy = 0
+totalEthUsedBuy = 0
 
-CakeToken = BEP20Token(config.CAKE_ADDRESS, bsc)
-ArenaToken = BEP20Token(config.ARENA_ADDRESS, bsc)
+UsdtToken = ERC20Token(config.USDT_ADDRESS, arb)
+XpepeToken = ERC20Token(config.XPEPE_ADDRESS, arb)
 
 
 def InitializeTrade():
@@ -115,42 +94,54 @@ def InitializeTrade():
     global TokenToSellAddress
     global TradingTokenDecimal
     # Getting ABI
-    sellTokenAbi = tokenAbi(TokenToSellAddress)
-    apeswapAbi = tokenAbi(apeswapRouterAddress)
-    buyTokenAbi = tokenAbi(CAKE_Address)
+    BTokenAbi = tokenAbi(XPEPE_Address)
 
-    # # Enter you wallet Public Address
-    # BNB_balance = web3.eth.get_balance(walletAddress)
+    sushiswapAbi = tokenAbi(sushiswapRouterAddress)
 
-    # BNB_balance = web3.from_wei(BNB_balance, 'ether')
-    # # print(f"Current BNB Balance: {web3.from_wei(BNB_balance, 'ether')}")
+    ATokenAbi = tokenAbi(USDT_Address)
+
+    proxyATokenAbi = tokenAbi(USDT_Proxy_Address)
 
     # Create a contract for both apeswapRoute and Token to Sell
-    contractApeswap = web3.eth.contract(address=apeswapRouterAddress, abi=apeswapAbi)
+    contractSushiswap = web3.eth.contract(
+        address=sushiswapRouterAddress, abi=sushiswapAbi
+    )
 
-    contractSellToken = web3.eth.contract(TokenToSellAddress, abi=sellTokenAbi)
+    contractAToken = web3.eth.contract(address=USDT_Address, abi=ATokenAbi)
+    contractBToken = web3.eth.contract(address=XPEPE_Address, abi=BTokenAbi)
 
-    contractBuyToken = web3.eth.contract(CAKE_Address, abi=buyTokenAbi)
+    proxyContractAToken = web3.eth.contract(
+        address=config.USDT_PROXY_ADDRESS, abi=proxyATokenAbi
+    )
 
-    if TradingTokenDecimal is None:
-        TradingTokenDecimal = contractSellToken.functions.decimals().call()
-        TradingTokenDecimal = getTokenDecimal(TradingTokenDecimal)
+    # x = proxyContractAToken.functions.allowance(
+    #     "0x356d14a9F50be1ed961aD99d599D6b4935eeFdb5",
+    #     "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+    # ).call()
+    # print(x)
+
+    # print(proxyContractAToken)
+
+    # if TradingTokenDecimal is None:
+    #     TradingTokenDecimal = contractSellToken.functions.decimals().call()
+    #     TradingTokenDecimal = getTokenDecimal(TradingTokenDecimal)
 
     # Get current avaliable amount of tokens from the wallet
     # NoOfTokens = contractSellToken.functions.balanceOf(walletAddress).call()
     # NoOfTokens = web3.from_wei(NoOfTokens, TradingTokenDecimal)
-    symbol = contractSellToken.functions.symbol().call()
-
+    # symbol = contractSellToken.functions.symbol().call()
+    #
     params = {
-        "symbol": symbol,
+        # "symbol": symbol,
         "web3": web3,
-        "contractBuyToken": contractBuyToken,
-        "contractSellToken": contractSellToken,
-        "contractApeswap": contractApeswap,
-        "apeswapRouterAddress": apeswapRouterAddress,
-        "TokenToSellAddress": TokenToSellAddress,
-        "CAKE_Address": CAKE_Address,
-        "TradingTokenDecimal": TradingTokenDecimal,
+        "contractAToken": contractAToken,
+        "contractBToken": contractBToken,
+        "contractSushiswap": contractSushiswap,
+        "sushiswapRouterAddress": sushiswapRouterAddress,
+        "XPEPE_Address": XPEPE_Address,
+        "USDT_Address": USDT_Address,
+        "proxyContractAToken": proxyContractAToken,
+        # "TradingTokenDecimal": TradingTokenDecimal,
     }
 
     # return BNB_balance, symbol, NoOfTokens, params
@@ -299,36 +290,36 @@ def generateRandIntFromRange(min, max):
 def buyMicroTransaction(
     params, logging, buyTokenAddress, tradeCount, buyVolumeInUSD, buyAddresses, randNum
 ):
-    global totalRejectedAmountBuy, totalBNBUsedBuy
-
-    tradeTokenAmount = round(
-        apeswapGetPrice(
-            params,
-            [config.USDT_ADDRESS, "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"],
-            buyVolumeInUSD,
-            web3,
-        )
-        / (10**18),
-        5,
-    )
+    global totalRejectedAmountBuy, totalEthUsedBuy
+    tradeTokenAmount = buyVolumeInUSD
+    # tradeTokenAmount = round(
+    #     apeswapGetPrice(
+    #         params,
+    #         [config.USDT_ADDRESS, "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"],
+    #         buyVolumeInUSD,
+    #         web3,
+    #     )
+    #     / (10**18),
+    #     5,
+    # )
     initTradeTokenAmount = tradeTokenAmount
 
-    logging.info(
-        log(
-            f"Trade {tradeCount}: Buy volume is {buyVolumeInUSD} USD -> {round(tradeTokenAmount,5)} CAKE token"
-        )
-    )
+    # logging.info(
+    #     log(
+    #         f"Trade {tradeCount}: Buy volume is {buyVolumeInUSD} USD -> {round(buyVolumeInUSD,5)} CAKE token"
+    #     )
+    # )
     boughtTokenAmountCumm = 0
 
     logging.info(log(f"======================================"))
     logging.info(log(f"Transactions:"))
 
     # Distribute amount to trade for each wallet
-    amountToTrade = randomValues(round(tradeTokenAmount, 5))
+    amountToTrade = randomValues(round(buyVolumeInUSD, 5))
 
     count = 0
     for wallet in randNum:
-        bnb = web3.eth.get_balance(buyAddresses[wallet])
+        eth = web3.eth.get_balance(buyAddresses[wallet])
 
         if tradeTokenAmount > 0:
             microTxBuyAmount = amountToTrade[count]
@@ -339,19 +330,19 @@ def buyMicroTransaction(
 
             tradeTokenAmount -= microTxBuyAmount
 
-            # If insufficient CAKE
+            # If insufficient USDT
             if buy == 0 and boughtTokenAmount == 0:
                 totalRejectedAmountBuy += microTxBuyAmount
                 logging.info(
                     log(
-                        f" On hold {microTxBuyAmount} CAKE, Remaining {round(tradeTokenAmount,5)} CAKE to go"
+                        f" On hold {microTxBuyAmount} USDT, Remaining {round(tradeTokenAmount,5)} USDT to go"
                     )
                 )
             else:
                 logging.info(log(buy[0]))
                 logging.info(
                     log(
-                        f" After buy, {microTxBuyAmount} CAKE for {boughtTokenAmount} ARENA, Remaining {round(tradeTokenAmount,5)} CAKE to go"
+                        f" After buy, {microTxBuyAmount} USDT, Remaining {round(tradeTokenAmount,5)} USDT to go"
                     )
                 )
 
@@ -359,8 +350,8 @@ def buyMicroTransaction(
 
             boughtTokenAmountCumm += Decimal(boughtTokenAmount)
 
-            totalBNBUsedBuy += round(
-                (bnb - web3.eth.get_balance(buyAddresses[wallet])) / (10**18), 5
+            totalEthUsedBuy += round(
+                (eth - web3.eth.get_balance(buyAddresses[wallet])) / (10**18), 5
             )
     return initTradeTokenAmount, boughtTokenAmountCumm
 
@@ -434,7 +425,7 @@ def sellMicroTransaction(
 
 
 def tradeToken(params):
-    global tradeCount, tradeVolume, latestSoldArenaForCake, latestBuyAreaWithCake
+    global tradeCount, tradeVolume, latestSoldArenaForCake
 
     buyAddresses = config.YOUR_WALLET_ADDRESS
     randNum = randomize()
@@ -460,9 +451,15 @@ def tradeToken(params):
             tradeEtherAmountUsd = tradeVolume
 
         tradeCount += 1
+        # logging.info(
+        #     log(
+        #         f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USD worth of ARENA, current remaining trade volume {tradeVolume-tradeEtherAmountUsd} USD"
+        #     )
+        # )
+
         logging.info(
             log(
-                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USD worth of ARENA, current remaining trade volume {tradeVolume-tradeEtherAmountUsd} USD"
+                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USD , current remaining trade volume {tradeVolume-tradeEtherAmountUsd} USD"
             )
         )
 
@@ -473,7 +470,7 @@ def tradeToken(params):
         [spentCAKE, boughtARENA] = buyMicroTransaction(
             params,
             logging,
-            config.ARENA_ADDRESS,
+            config.XPEPE_ADDRESS,
             tradeCount,
             tradeEtherAmountUsd,
             buyAddresses,
@@ -605,9 +602,9 @@ def test():
 
 def runCode():
     params = InitializeTrade()
-
+    # print(params)
     # set initial trade amount usdt to cake
-    global latestBuyAreaWithCake, tradeCycleJob, totalCakeSell, totalARENABought, totalRejectedAmountBuy, totalBNBUsedBuy
+    global tradeCycleJob, totalCakeSell, totalARENABought, totalRejectedAmountBuy, totalBNBUsedBuy
 
     # seperate multiple wallets into group
 

@@ -13,7 +13,7 @@ Created on Sun Aug 29 10:11:13 2021
 
 def tokenAbi(address, driver=None):
     # try:
-    filename = f'ABI_{address}.txt'
+    filename = f"ABI_{address}.txt"
     with open(f"data/{filename}") as f:
         abi = f.readlines()
         return abi[0]
@@ -22,8 +22,8 @@ def tokenAbi(address, driver=None):
     #     return abi
 
 
-def bep20TokenAbi():
-    filename = f'BEP20.txt'
+def erc20TokenAbi():
+    filename = f"ERC20.txt"
     with open(f"data/{filename}") as f:
         abi = f.readlines()
         return abi[0]

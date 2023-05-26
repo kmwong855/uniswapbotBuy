@@ -2,7 +2,7 @@ import config as config
 from web3 import Web3
 import datetime
 import random
-from abi import tokenAbi, bep20TokenAbi
+from abi import tokenAbi, erc20TokenAbi
 
 
 def configCheck():

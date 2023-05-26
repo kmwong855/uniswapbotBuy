@@ -1,6 +1,6 @@
 import config
 import time
-from bep20Token import BEP20Token
+from erc20Token import ERC20Token
 from eth_abi import decode
 from general import *
 from decimal import *
@@ -9,46 +9,43 @@ TokenToBuyAddress = ""
 TokenBoughtInEther = 0
 
 
-def buyTokens(kwargs, arenaBuyAmount, logging, wallet, index):
+def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     # log = logging
     symbol = kwargs.get("symbol")
     web3 = kwargs.get("web3")
     walletAddress = kwargs.get("walletAddress")
-    contractApeswap = kwargs.get("contractApeswap")
-    contractRouterApeSwap = kwargs.get("apeswapRouterAddress")
+    contractSushiswap = kwargs.get("contractSushiswap")
+    contractRouterSushiswap = kwargs.get("sushiswapRouterAddress")
     global TokenToBuyAddress
-    TokenToBuyAddress = kwargs.get("TokenToSellAddress")  # ARENA
-    CAKE_Address = kwargs.get("CAKE_Address")
-    CakeToken = BEP20Token(CAKE_Address, config.RPC_URL)
-    CakeTokenContract = kwargs.get("contractBuyToken")
-    toBuyBNBAmountEther = arenaBuyAmount
-    toBuyBNBAmount = web3.to_wei(float(toBuyBNBAmountEther), "ether")
-
-    # TO_DO
-    # toBuyBNBAmountMin = int(minArenaExpected*(1-config.SLIPPAGE))
-    toBuyBNBAmountMin = 1
+    XPEPE_Address = kwargs.get("XPEPE_Address")  # XPEPE
+    USDT_Address = kwargs.get("USDT_Address")
+    UsdtToken = ERC20Token(USDT_Address, config.RPC_URL)
+    UsdtTokenContract = kwargs.get("contractAToken")
+    proxyContractAToken = kwargs.get("proxyContractAToken")
+    toBuyEther = xpepeBuyAmount
+    toBuyAmount = web3.to_wei(float(toBuyEther), "ether")
 
     # insufficient balance throw exception
-    if not CakeToken.checkTokenBalanceSufficientWithEther(wallet, toBuyBNBAmountEther):
-        walletBalance = CakeToken.getBalanceInWei(wallet) / (10**18)
+    if not UsdtToken.checkTokenBalanceSufficientWithEther(wallet, toBuyAmount):
+        walletBalance = UsdtToken.getBalanceInWei(wallet) / (10**18)
         logging.info(
             log(
-                f"(FAILED) {wallet} : Insufficient CAKE to trade, need {toBuyBNBAmountEther} to trade but only have {walletBalance}"
+                f"(FAILED) {wallet} : Insufficient USDT to trade, need {toBuyEther} to trade but only have {walletBalance}"
             )
         )
 
         return 0, 0
 
     # Check allowance
-    cakeAllowanceCheck = CakeTokenContract.functions.allowance(
-        wallet, contractRouterApeSwap
+    usdtAllowanceCheck = proxyContractAToken.functions.allowance(
+        wallet, contractRouterSushiswap
     ).call()
 
-    if cakeAllowanceCheck <= 0:
+    if usdtAllowanceCheck <= 0:
         max_amount = web3.to_wei(2**64 - 1, "ether")
 
-        tx = CakeTokenContract.functions.approve(
-            contractRouterApeSwap, max_amount
+        tx = UsdtTokenContract.functions.approve(
+            contractSushiswap, max_amount
         ).build_transaction(
             {
                 "from": wallet,
@@ -65,10 +62,10 @@ def buyTokens(kwargs, arenaBuyAmount, logging, wallet, index):
 
         logging.info(log(f"{wallet} : Approve allowance"))
 
-    apeswap_txn = contractApeswap.functions.swapExactTokensForTokens(
-        toBuyBNBAmount,
+    sushiswap_txn = contractSushiswap.functions.swapExactTokensForTokens(
+        toBuyAmount,
         1,  # NEED PANCAKE RATE CONVERSION TO BE SAFE
-        [CAKE_Address, TokenToBuyAddress],
+        [USDT_Address, XPEPE_Address],
         wallet,
         (int(time.time() + 10000)),
     ).build_transaction(
@@ -81,7 +78,7 @@ def buyTokens(kwargs, arenaBuyAmount, logging, wallet, index):
     )
 
     signed_txn = web3.eth.account.sign_transaction(
-        apeswap_txn, private_key=config.YOUR_PRIVATE_KEY[index]
+        sushiswap_txn, private_key=config.YOUR_PRIVATE_KEY[index]
     )
     global TokenBoughtInEther
 
@@ -99,7 +96,7 @@ def buyTokens(kwargs, arenaBuyAmount, logging, wallet, index):
                     logging.info(log(e))
 
             result = [
-                f"(Success) {wallet} : Bought {TokenBoughtInEther} of ARENA  with {web3.from_wei(toBuyBNBAmount, 'ether')} of CAKE token  TransactionHash: {web3.to_hex(tx_token)}"
+                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE  with {web3.from_wei(toBuyAmount, 'ether')} of USDT token  TransactionHash: {web3.to_hex(tx_token)}"
             ]
             return result, TokenBoughtInEther
         except ValueError as e:

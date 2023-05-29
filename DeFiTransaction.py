@@ -58,8 +58,6 @@ else:
 
 
 def InitializeTrade():
-    global driver
-    global TokenToSellAddress
     global TradingTokenDecimal
     # Getting ABI
     BTokenAbi = tokenAbi(XPEPE_Address)
@@ -96,80 +94,14 @@ def InitializeTrade():
     return params
 
 
-def tradeSummary(params):
+def tradeSummary():
     logging.info("----------------------------------------------")
     logging.info(log(f"Trading Summary: "))
     logging.info("----------------------------------------------")
-
-    # usdUsed = 0
-
-    # if afterBNB < initialBNB:
-    #     usdDiff = convertBNBToUsdtReturnWei(params, initialBNB - afterBNB) / (10**18)
-    #     usdUsed += usdDiff
-    #     logging.info(
-    #         log(
-    #             f"BNB: {afterBNB} BNB ( -{initialBNB - afterBNB} BNB) / ( -{usdDiff} USDT)"
-    #         )
-    #     )
-    # elif afterBNB > initialBNB:
-    #     usdDiff = convertBNBToUsdtReturnWei(params, afterBNB - initialBNB) / (10**18)
-    #     usdUsed -= usdDiff
-    #     logging.info(
-    #         log(
-    #             f"BNB: {afterBNB} BNB ( +{afterBNB - initialBNB} BNB) / ( +{usdDiff} USDT)"
-    #         )
-    #     )
-    # else:
-    #     logging.info(log(f"BNB: {afterBNB} BNB (0)"))
-
-    # if afterCAKE < initialCAKE:
-    #     usdDiff = convertArenaToUsdtReturnWei(params, initialCAKE - afterCAKE) / (
-    #         10**18
-    #     )
-    #     usdUsed += usdDiff
-    #     logging.info(
-    #         log(
-    #             f"CAKE: {afterCAKE} CAKE ( -{initialCAKE - afterCAKE} CAKE) / ( -{usdDiff} USDT)"
-    #         )
-    #     )
-    # elif afterCAKE > initialCAKE:
-    #     usdDiff = convertArenaToUsdtReturnWei(params, afterCAKE - initialCAKE) / (
-    #         10**18
-    #     )
-    #     usdUsed -= usdDiff
-    #     logging.info(
-    #         log(
-    #             f"CAKE: {afterCAKE} CAKE (+ {afterCAKE - initialCAKE} CAKE) / ( +{usdDiff} USDT)"
-    #         )
-    #     )
-    # else:
-    #     logging.info(log(f"CAKE: {afterCAKE} CAKE (0) "))
-
-    # if afterARENA < initialARENA:
-    #     usdDiff = convertArenaToUsdtReturnWei(params, initialARENA - afterARENA) / (
-    #         10**18
-    #     )
-    #     usdUsed += usdDiff
-    #     logging.info(
-    #         log(
-    #             f"ARENA: {afterARENA} ARENA ( -{initialARENA - afterARENA} CAKE) / ( -{usdDiff} USDT)"
-    #         )
-    #     )
-    # elif afterARENA > initialARENA:
-    #     usdDiff = convertArenaToUsdtReturnWei(params, afterARENA - initialARENA) / (
-    #         10**18
-    #     )
-    #     usdUsed -= usdDiff
-    #     logging.info(
-    #         log(
-    #             f"ARENA: {afterARENA} ARENA ( +{afterARENA - initialARENA} CAKE) / ( +{usdDiff} USDT)"
-    #         )
-    #     )
-    # else:
-    #     logging.info(log(f"ARENA: {afterARENA} ARENA (0)"))
-
-    logging.info(log(f"ARENA: {afterARENA} ARENA (0)"))
-    # logging.info(log(f"Total USD spent (including gas): {usdUsed} USDT"))
+    logging.info(log(f"USDT Token used : {totalUsdtSell}"))
+    logging.info(log(f"Xpepe Token Bought : {totalXpepeBought}"))
+    logging.info(log(f"Eth Token used : {totalEthUsedBuy}"))
+    logging.info(log(f"Total volume USDT onhold (failed) : {totalRejectedAmountBuy}"))
     logging.info("----------------------------------------------")
 
 
@@ -222,17 +154,20 @@ def buyMicroTransaction(
 
             # If insufficient USDT
             if buy == 0 and boughtTokenAmount == 0:
-                totalRejectedAmountBuy += microTxBuyAmount
+                totalRejectedAmountBuy = round(
+                    totalRejectedAmountBuy + microTxBuyAmount, 5
+                )
+
                 logging.info(
                     log(
-                        f" On hold {microTxBuyAmount} USDT, Remaining {round(tradeTokenAmount,5)} USDT to go"
+                        f" On hold {microTxBuyAmount} USDT, Remaining {round(abs(tradeTokenAmount),5)} USDT to go"
                     )
                 )
             else:
                 logging.info(log(buy[0]))
                 logging.info(
                     log(
-                        f" After buy, {microTxBuyAmount} USDT, Remaining {round(tradeTokenAmount,5)} USDT to go"
+                        f" After buy, {microTxBuyAmount} USDT, Remaining {round(abs(tradeTokenAmount),5)} USDT to go"
                     )
                 )
 
@@ -255,7 +190,7 @@ def tradeToken(params):
         logging.info(log(f"Trading completed, stop the trade schedule"))
         schedule.cancel_job(tradeCycleJob)
         logging.info(log(f"Cancelled Job, The End"))
-        tradeSummary(params)
+        tradeSummary()
         # exit script
         sys.exit()
     else:
@@ -342,11 +277,11 @@ def runCode():
     global tradeCycleJob, totalCakeSell, totalARENABought, totalRejectedAmountBuy, totalBNBUsedBuy
 
     # not recommended to put below 30s, buy sell have a delay of 5s for transaction verification
-    # tradeCycleJob = schedule.every(15).seconds.do(tradeToken, params)
-    tradeToken(params)
+    tradeCycleJob = schedule.every(1).seconds.do(tradeToken, params)
+    # tradeToken(params)
 
-    # while True:
-    #     schedule.run_pending()
+    while True:
+        schedule.run_pending()
 
 
 if __name__ == "__main__":

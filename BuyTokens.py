@@ -11,9 +11,7 @@ TokenBoughtInEther = 0
 
 def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     # log = logging
-    symbol = kwargs.get("symbol")
     web3 = kwargs.get("web3")
-    walletAddress = kwargs.get("walletAddress")
     contractSushiswap = kwargs.get("contractSushiswap")
     contractRouterSushiswap = kwargs.get("sushiswapRouterAddress")
     global TokenToBuyAddress
@@ -115,23 +113,6 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
             return result, TokenBoughtInEther  # testing only
         else:
             return result, None
-
-
-# def getTokenBought(web3, txHash):
-#     tokenDecimal = 18
-#     tx = web3.eth.wait_for_transaction_receipt(
-#         txHash, config.WAIT_FOR_TX_RECEIPT_TIMEMOUT_SECONDS, config.WAIT_FOR_TX_RECEIPT_POLL_FREQUENCY)
-#     a = tx.logs
-#     tokenBought = 0
-#     for log in a:
-
-#         value = decode(['uint256'], bytes.fromhex(log.data[2:]))
-#         tokenContractAddress = log.address
-#         if (tokenContractAddress == TokenToBuyAddress):  # get the amount of swapped token
-#             # shortcut, no token decimal parse from contract
-#             tokenBought = value[0] / 10**tokenDecimal
-#             break
-#     return tokenBought, tx
 
 
 def getTokenBought(web3, txHash):

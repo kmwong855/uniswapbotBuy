@@ -20,8 +20,8 @@ GAS_PRICE_IN_WEI = 6
 
 # Micro Transaction Parameters
 # basically split one big transaction volume into rand small micro trasaction
-PER_TRANSACTION_VOLUME_UPPER_USD = 4
-PER_TRANSACTION_VOLUME_LOWER_USD = 1
+PER_TRANSACTION_VOLUME_UPPER = 4
+PER_TRANSACTION_VOLUME_LOWER = 1
 
 # Buy
 MAX_BUY_MICROTRANSACTION_COUNT = 5

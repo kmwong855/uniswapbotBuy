@@ -93,50 +93,6 @@ def apeswapGetPrice(params, tkArr, swapAmountInEth, webx):
     return int((inPrice[0] + outPrice[1]) / 2)
 
 
-def convertUsdtToCakeReturnWei(params, amount):
-    return apeswapGetPrice(
-        params,
-        [
-            "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
-            "0x55d398326f99059fF775485246999027B3197955",
-        ],
-        amount,
-    )
-
-
-def convertCakeToUsdtReturnWei(params, amount):
-    return apeswapGetPrice(
-        params,
-        [
-            "0x55d398326f99059fF775485246999027B3197955",
-            "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
-        ],
-        amount,
-    )
-
-
-def convertArenaToUsdtReturnWei(params, amount):
-    return apeswapGetPrice(
-        params,
-        [
-            "0x55d398326f99059fF775485246999027B3197955",
-            "0xCfFD4D3B517b77BE32C76DA768634dE6C738889B",
-        ],
-        amount,
-    )
-
-
-def convertBNBToUsdtReturnWei(params, amount):
-    return apeswapGetPrice(
-        params,
-        [
-            "0x55d398326f99059fF775485246999027B3197955",
-            "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-        ],
-        amount,
-    )
-
-
 def log(msg):
     logmsg = f"{datetime.datetime.now()} {msg}"
     print(logmsg)

@@ -44,11 +44,12 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     if usdtAllowanceCheck <= 0:
         max_amount = web3.to_wei(2**64 - 1, "ether")
 
-        tx = UsdtTokenContract.functions.approve(
-            contractSushiswap, max_amount
+        tx = proxyContractAToken.functions.approve(
+            contractRouterSushiswap, max_amount
         ).build_transaction(
             {
                 "from": wallet,
+                "gas": 1600000,
                 "gasPrice": web3.to_wei(config.GAS_PRICE_IN_WEI, "gwei"),
                 "nonce": web3.eth.get_transaction_count(wallet),
             }

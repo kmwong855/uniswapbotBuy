@@ -7,25 +7,31 @@ from decimal import *
 
 TokenToBuyAddress = ""
 TokenBoughtInEther = 0
+tokenDecimal = 0
 
 
 def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
+    global TokenToBuyAddress, tokenDecimal, TokenBoughtInEther
+
     # log = logging
     web3 = kwargs.get("web3")
     contractSushiswap = kwargs.get("contractSushiswap")
     contractRouterSushiswap = kwargs.get("sushiswapRouterAddress")
-    global TokenToBuyAddress
-    XPEPE_Address = kwargs.get("XPEPE_Address")  # XPEPE
+    TokenToBuyAddress = kwargs.get("XPEPE_Address")  # XPEPE
     USDT_Address = kwargs.get("USDT_Address")
     UsdtToken = ERC20Token(USDT_Address, config.RPC_URL)
     UsdtTokenContract = kwargs.get("contractAToken")
     proxyContractAToken = kwargs.get("proxyContractAToken")
     toBuyEther = xpepeBuyAmount
-    toBuyAmount = web3.to_wei(float(toBuyEther), "ether")
+    usdtDecimal = kwargs.get("usdt_decimals")
+    tokenDecimal = kwargs.get("xpepe_decimals")
+    toBuyAmount = web3.to_wei(float(toBuyEther), usdtDecimal)
 
     # insufficient balance throw exception
-    if not UsdtToken.checkTokenBalanceSufficientWithEther(wallet, toBuyAmount):
-        walletBalance = UsdtToken.getBalanceInWei(wallet) / (10**18)
+    if not UsdtToken.checkTokenBalanceSufficientWithEther(
+        wallet, toBuyEther, usdtDecimal
+    ):
+        walletBalance = UsdtToken.getBalanceInWei(wallet) / web3.to_wei(1, usdtDecimal)
         logging.info(
             log(
                 f"(FAILED) {wallet} : Insufficient USDT to trade, need {toBuyEther} to trade but only have {walletBalance}"
@@ -64,7 +70,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     sushiswap_txn = contractSushiswap.functions.swapExactTokensForTokens(
         toBuyAmount,
         1,  # NEED PANCAKE RATE CONVERSION TO BE SAFE
-        [USDT_Address, XPEPE_Address],
+        [USDT_Address, TokenToBuyAddress],
         wallet,
         (int(time.time() + 10000)),
     ).build_transaction(
@@ -79,7 +85,6 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     signed_txn = web3.eth.account.sign_transaction(
         sushiswap_txn, private_key=config.YOUR_PRIVATE_KEY[index]
     )
-    global TokenBoughtInEther
 
     if config.BUY_TOKENS:
         try:
@@ -88,14 +93,17 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
             receipt_success = False
             while not receipt_success:
                 try:
-                    [TokenBoughtInEther, receipt] = getTokenBought(web3, tx_token)
+                    [TokenBoughtInEther, receipt] = getTokenBought(
+                        web3,
+                        tx_token,
+                    )
                     if receipt.status == 1:
                         receipt_success = True
                 except Exception as e:
                     logging.info(log(e))
 
             result = [
-                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE  with {web3.from_wei(toBuyAmount, 'ether')} of USDT token  TransactionHash: {web3.to_hex(tx_token)}"
+                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE  with {toBuyEther} of USDT token  TransactionHash:{web3.to_hex(tx_token)}"
             ]
             return result, TokenBoughtInEther
         except ValueError as e:
@@ -112,11 +120,11 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
         if config.DEBUGGING:
             return result, TokenBoughtInEther  # testing only
         else:
+            print("b")
             return result, None
 
 
 def getTokenBought(web3, txHash):
-    tokenDecimal = 18
     tx = web3.eth.wait_for_transaction_receipt(
         txHash,
         config.WAIT_FOR_TX_RECEIPT_TIMEMOUT_SECONDS,
@@ -132,11 +140,11 @@ def getTokenBought(web3, txHash):
             res += "%02x" % b
 
         value = decode(["uint256"], b"\x00" + b"\x00" + bytes.fromhex(res))
+
         tokenContractAddress = log.address
         if tokenContractAddress == TokenToBuyAddress:  # get the amount of swapped token
             # shortcut, no token decimal parse from contract
 
-            tokenBought = Decimal(value[0] / 10**tokenDecimal)
+            tokenBought = Decimal(value[0] / web3.to_wei(1, tokenDecimal))
             break
-
     return format(tokenBought, ".8f"), tx

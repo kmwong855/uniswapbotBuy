@@ -3,6 +3,7 @@ from web3 import Web3
 import datetime
 import random
 from abi import tokenAbi, erc20TokenAbi
+from decimal import *
 
 
 def configCheck():
@@ -108,11 +109,11 @@ def randomValues(volume):
 
     s = sum(values)
 
-    values = [round(float((i / s) * volumnPerTransaction), 5) for i in values]
+    values = [round(Decimal((i / s) * volumnPerTransaction), 5) for i in values]
 
     for x in range(len(values)):
         if x == len(values) - 1:
-            values[x] = round(volumnPerTransaction - totalSum, 5)
+            values[x] = round(Decimal(volumnPerTransaction) - Decimal(totalSum), 5)
         else:
             totalSum += values[x]
 

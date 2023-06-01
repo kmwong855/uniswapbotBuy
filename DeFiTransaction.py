@@ -15,7 +15,7 @@ import config as config
 import schedule
 from decimal import *
 from general import *
-
+from decimalData import getTokenDecimal
 
 arb = config.RPC_URL
 web3 = Web3(Web3.HTTPProvider(arb))
@@ -24,6 +24,7 @@ if web3.is_connected():
 
 # Important Addresses
 XPEPE_Address = web3.to_checksum_address(config.XPEPE_ADDRESS)
+XPEPE_Proxy_Address = web3.to_checksum_address(config.XPEPE_PROXY_ADDRESS)
 USDT_Address = web3.to_checksum_address(config.USDT_ADDRESS)
 USDT_Proxy_Address = web3.to_checksum_address(config.USDT_PROXY_ADDRESS)
 sushiswapRouterAddress = web3.to_checksum_address(config.SUSHISWAP_ROUTER_ADDRESS)
@@ -35,7 +36,8 @@ tradeCount = 0
 
 # cummulative variables
 # Trading volume cap
-tradeVolume = config.TOTAL_TRADE_VOLUME
+# tradeVolume = config.TOTAL_TRADE_VOLUME
+tradeVolume = 0.0002
 # job, unused change to window task scheduler
 tradeCycleJob = {}
 
@@ -60,13 +62,14 @@ else:
 def InitializeTrade():
     global TradingTokenDecimal
     # Getting ABI
-    BTokenAbi = tokenAbi(XPEPE_Address)
 
     sushiswapAbi = tokenAbi(sushiswapRouterAddress)
 
     ATokenAbi = tokenAbi(USDT_Address)
+    BTokenAbi = tokenAbi(XPEPE_Address)
 
     proxyATokenAbi = tokenAbi(USDT_Proxy_Address)
+    proxyBTokenAbi = tokenAbi(XPEPE_Proxy_Address)
 
     # Create a contract for both apeswapRoute and Token to Sell
     contractSushiswap = web3.eth.contract(
@@ -76,9 +79,15 @@ def InitializeTrade():
     contractAToken = web3.eth.contract(address=USDT_Address, abi=ATokenAbi)
     contractBToken = web3.eth.contract(address=XPEPE_Address, abi=BTokenAbi)
 
-    proxyContractAToken = web3.eth.contract(
-        address=config.USDT_PROXY_ADDRESS, abi=proxyATokenAbi
-    )
+    proxyContractAToken = web3.eth.contract(address=USDT_Address, abi=proxyATokenAbi)
+    proxyContractBToken = web3.eth.contract(address=XPEPE_Address, abi=proxyBTokenAbi)
+
+    # Get USDT Decimal
+    TradingTokenADecimal = proxyContractAToken.functions.decimals().call()
+    TradingTokenADecimal = getTokenDecimal(TradingTokenADecimal)
+
+    TradingTokenBDecimal = proxyContractBToken.functions.decimals().call()
+    TradingTokenBDecimal = getTokenDecimal(TradingTokenBDecimal)
 
     params = {
         "web3": web3,
@@ -89,6 +98,8 @@ def InitializeTrade():
         "XPEPE_Address": XPEPE_Address,
         "USDT_Address": USDT_Address,
         "proxyContractAToken": proxyContractAToken,
+        "usdt_decimals": TradingTokenADecimal,
+        "xpepe_decimals": TradingTokenBDecimal,
     }
 
     return params
@@ -114,30 +125,16 @@ def buyMicroTransaction(
 ):
     global totalRejectedAmountBuy, totalEthUsedBuy
     tradeTokenAmount = buyVolumeInUSD
-    # tradeTokenAmount = round(
-    #     apeswapGetPrice(
-    #         params,
-    #         [config.USDT_ADDRESS, "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"],
-    #         buyVolumeInUSD,
-    #         web3,
-    #     )
-    #     / (10**18),
-    #     5,
-    # )
+
     initTradeTokenAmount = tradeTokenAmount
 
-    # logging.info(
-    #     log(
-    #         f"Trade {tradeCount}: Buy volume is {buyVolumeInUSD} USD -> {round(buyVolumeInUSD,5)} CAKE token"
-    #     )
-    # )
     boughtTokenAmountCumm = 0
 
     logging.info(log(f"======================================"))
     logging.info(log(f"Transactions:"))
 
     # Distribute amount to trade for each wallet
-    amountToTrade = randomValues(round(buyVolumeInUSD, 5))
+    amountToTrade = randomValues(round(tradeTokenAmount, 5))
 
     count = 0
     for wallet in randNum:
@@ -150,7 +147,7 @@ def buyMicroTransaction(
                 params, microTxBuyAmount, logging, buyAddresses[wallet], wallet
             )
 
-            tradeTokenAmount -= microTxBuyAmount
+            tradeTokenAmount = Decimal(tradeTokenAmount) - Decimal(microTxBuyAmount)
 
             # If insufficient USDT
             if buy == 0 and boughtTokenAmount == 0:
@@ -196,10 +193,11 @@ def tradeToken(params):
     else:
         logging.info("---------------------------")
 
-        tradeEtherAmountUsd = generateRandIntFromRange(
-            config.PER_TRANSACTION_VOLUME_LOWER,
-            config.PER_TRANSACTION_VOLUME_UPPER,
-        )
+        # tradeEtherAmountUsd = generateRandIntFromRange(
+        #     config.PER_TRANSACTION_VOLUME_LOWER,
+        #     config.PER_TRANSACTION_VOLUME_UPPER,
+        # )
+        tradeEtherAmountUsd = 0.0001
 
         if tradeEtherAmountUsd > tradeVolume and tradeVolume > 0:
             tradeEtherAmountUsd = tradeVolume
@@ -208,7 +206,7 @@ def tradeToken(params):
 
         logging.info(
             log(
-                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USDT , current remaining trade volume {tradeVolume-tradeEtherAmountUsd} USDT"
+                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USDT , current remaining trade volume {round(tradeVolume-tradeEtherAmountUsd,5)} USDT"
             )
         )
 
@@ -277,7 +275,7 @@ def runCode():
     global tradeCycleJob, totalCakeSell, totalARENABought, totalRejectedAmountBuy, totalBNBUsedBuy
 
     # not recommended to put below 30s, buy sell have a delay of 5s for transaction verification
-    tradeCycleJob = schedule.every(1).seconds.do(tradeToken, params)
+    tradeCycleJob = schedule.every(15).seconds.do(tradeToken, params)
     # tradeToken(params)
 
     while True:

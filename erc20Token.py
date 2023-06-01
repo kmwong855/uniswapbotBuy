@@ -13,9 +13,10 @@ class ERC20Token:
     def getBalanceInWei(self, walletAddress):
         return self.tokenContract.functions.balanceOf(walletAddress).call()
 
-    def checkTokenBalanceSufficientWithEther(self, walletAddress, amountInEther):
+    def checkTokenBalanceSufficientWithEther(self, walletAddress, amountInEther, unit):
         balance = self.tokenContract.functions.balanceOf(walletAddress).call()
-        if self.web3Connection.to_wei(float(amountInEther), "ether") > balance:
+
+        if self.web3Connection.to_wei(float(amountInEther), unit) > balance:
             return False
         else:
             return True

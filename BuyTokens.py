@@ -45,6 +45,8 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
         wallet, contractRouterSushiswap
     ).call()
 
+    nonceCount = 0
+
     if usdtAllowanceCheck <= 0:
         max_amount = web3.to_wei(2**64 - 1, "ether")
 
@@ -64,7 +66,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
         )
 
         tx_token = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-
+        nonceCount = 1
         logging.info(log(f"{wallet} : Approve allowance"))
 
     sushiswap_txn = contractSushiswap.functions.swapExactTokensForTokens(
@@ -78,7 +80,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
             "from": wallet,
             "gas": 1600000,
             "gasPrice": web3.to_wei(config.GAS_PRICE_IN_WEI, "gwei"),
-            "nonce": web3.eth.get_transaction_count(wallet),
+            "nonce": web3.eth.get_transaction_count(wallet) + nonceCount,
         }
     )
 
@@ -103,7 +105,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
                     logging.info(log(e))
 
             result = [
-                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE  with {toBuyEther} of USDT token  TransactionHash:{web3.to_hex(tx_token)}"
+                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE with {toBuyEther} of USDT token - Transaction Hash:{web3.to_hex(tx_token)}"
             ]
             return result, TokenBoughtInEther
         except ValueError as e:

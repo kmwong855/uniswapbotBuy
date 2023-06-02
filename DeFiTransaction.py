@@ -272,7 +272,7 @@ def randomize():
 def runCode():
     params = InitializeTrade()
 
-    global tradeCycleJob, totalCakeSell, totalARENABought, totalRejectedAmountBuy, totalBNBUsedBuy
+    global tradeCycleJob
 
     # not recommended to put below 30s, buy sell have a delay of 5s for transaction verification
     tradeCycleJob = schedule.every(15).seconds.do(tradeToken, params)

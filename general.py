@@ -107,6 +107,11 @@ def randomValues(volume):
 
     values = [round(random.random(), 5) * 10 for i in range(0, walletLength)]
 
+    for num in range(len(values)):
+        if values[num] == 0:
+            values = [round(random.random(), 5) * 10 for i in range(0, walletLength)]
+            break
+
     s = sum(values)
 
     values = [round(Decimal((i / s) * volumnPerTransaction), 5) for i in values]

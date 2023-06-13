@@ -4,6 +4,7 @@ from erc20Token import ERC20Token
 from eth_abi import decode
 from general import *
 from decimal import *
+import math
 
 TokenToBuyAddress = ""
 TokenBoughtInEther = 0
@@ -15,8 +16,8 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
 
     # log = logging
     web3 = kwargs.get("web3")
-    contractSushiswap = kwargs.get("contractSushiswap")
-    contractRouterSushiswap = kwargs.get("sushiswapRouterAddress")
+    contractRouter = kwargs.get("contractRouter")
+    contractRouterAddress = kwargs.get("routerAddress")
     TokenToBuyAddress = kwargs.get("XPEPE_Address")  # XPEPE
     USDT_Address = kwargs.get("USDT_Address")
     UsdtToken = ERC20Token(USDT_Address, config.RPC_URL)
@@ -31,10 +32,12 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     if not UsdtToken.checkTokenBalanceSufficientWithEther(
         wallet, toBuyEther, usdtDecimal
     ):
-        walletBalance = UsdtToken.getBalanceInWei(wallet) / web3.to_wei(1, usdtDecimal)
+        walletBalance = round(
+            Decimal(UsdtToken.getBalanceInWei(wallet) / web3.to_wei(1, usdtDecimal)), 10
+        )
         logging.info(
             log(
-                f"(FAILED) {wallet} : Insufficient USDT to trade, need {toBuyEther} to trade but only have {walletBalance}"
+                f"(FAILED) {wallet} : Insufficient USDC to trade, need {toBuyEther} to trade but only have {walletBalance}"
             )
         )
 
@@ -42,7 +45,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
 
     # Check allowance
     usdtAllowanceCheck = proxyContractAToken.functions.allowance(
-        wallet, contractRouterSushiswap
+        wallet, contractRouterAddress
     ).call()
 
     nonceCount = 0
@@ -51,7 +54,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
         max_amount = web3.to_wei(2**64 - 1, "ether")
 
         tx = proxyContractAToken.functions.approve(
-            contractRouterSushiswap, max_amount
+            contractRouterAddress, max_amount
         ).build_transaction(
             {
                 "from": wallet,
@@ -69,13 +72,32 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
         nonceCount = 1
         logging.info(log(f"{wallet} : Approve allowance"))
 
-    sushiswap_txn = contractSushiswap.functions.swapExactTokensForTokens(
-        toBuyAmount,
-        1,  # NEED PANCAKE RATE CONVERSION TO BE SAFE
-        [USDT_Address, TokenToBuyAddress],
-        wallet,
-        (int(time.time() + 10000)),
-    ).build_transaction(
+    # swap_txn = contractSushiswap.functions.swapExactTokensForTokens(
+    #     toBuyAmount,
+    #     1,  # NEED PANCAKE RATE CONVERSION TO BE SAFE
+    #     [USDT_Address, TokenToBuyAddress],
+    #     wallet,
+    # ).build_transaction(
+    #     {
+    #         "from": wallet,
+    #         "gas": 1600000,
+    #         "gasPrice": web3.to_wei(config.GAS_PRICE_IN_WEI, "gwei"),
+    #         "nonce": web3.eth.get_transaction_count(wallet) + nonceCount,
+    #     }
+    # )
+
+    payload = (
+        USDT_Address,  # tokenIn
+        TokenToBuyAddress,  # tokenOut
+        10000,  # fee
+        wallet,  # recipient
+        round(time.time()) + 60 * 20,  # deadline
+        toBuyAmount,  # amountIn (exact amount of DAI to be swapped for WETH9)
+        0,  # amountOutMinimum
+        0,  # sqrtPriceLimitX96
+    )
+
+    swap_txn = contractRouter.functions.exactInputSingle(payload).build_transaction(
         {
             "from": wallet,
             "gas": 1600000,
@@ -85,7 +107,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
     )
 
     signed_txn = web3.eth.account.sign_transaction(
-        sushiswap_txn, private_key=config.YOUR_PRIVATE_KEY[index]
+        swap_txn, private_key=config.YOUR_PRIVATE_KEY[index]
     )
 
     if config.BUY_TOKENS:
@@ -105,7 +127,7 @@ def buyTokens(kwargs, xpepeBuyAmount, logging, wallet, index):
                     logging.info(log(e))
 
             result = [
-                f"(Success) {wallet} : Bought {TokenBoughtInEther} of XPEPE with {toBuyEther} of USDT token - Transaction Hash:{web3.to_hex(tx_token)}"
+                f"(Success) {wallet} : Bought {TokenBoughtInEther} of PEPEC with {toBuyEther} of USDC token - Transaction Hash:{web3.to_hex(tx_token)}"
             ]
             return result, TokenBoughtInEther
         except ValueError as e:

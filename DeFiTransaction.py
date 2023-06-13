@@ -24,10 +24,10 @@ if web3.is_connected():
 
 # Important Addresses
 XPEPE_Address = web3.to_checksum_address(config.XPEPE_ADDRESS)
-XPEPE_Proxy_Address = web3.to_checksum_address(config.XPEPE_PROXY_ADDRESS)
+# XPEPE_Proxy_Address = web3.to_checksum_address(config.XPEPE_PROXY_ADDRESS)
 USDT_Address = web3.to_checksum_address(config.USDT_ADDRESS)
 USDT_Proxy_Address = web3.to_checksum_address(config.USDT_PROXY_ADDRESS)
-sushiswapRouterAddress = web3.to_checksum_address(config.SUSHISWAP_ROUTER_ADDRESS)
+routerAddress = web3.to_checksum_address(config.ROUTER_ADDRESS)
 walletAddresses = config.YOUR_WALLET_ADDRESS
 TradingTokenDecimal = None
 
@@ -63,24 +63,23 @@ def InitializeTrade():
     global TradingTokenDecimal
     # Getting ABI
 
-    sushiswapAbi = tokenAbi(sushiswapRouterAddress)
+    routerAbi = tokenAbi(routerAddress)
 
     ATokenAbi = tokenAbi(USDT_Address)
     BTokenAbi = tokenAbi(XPEPE_Address)
 
     proxyATokenAbi = tokenAbi(USDT_Proxy_Address)
-    proxyBTokenAbi = tokenAbi(XPEPE_Proxy_Address)
+    # proxyBTokenAbi = tokenAbi(XPEPE_Proxy_Address)
 
     # Create a contract for both apeswapRoute and Token to Sell
-    contractSushiswap = web3.eth.contract(
-        address=sushiswapRouterAddress, abi=sushiswapAbi
-    )
+    contractRouter = web3.eth.contract(address=routerAddress, abi=routerAbi)
 
     contractAToken = web3.eth.contract(address=USDT_Address, abi=ATokenAbi)
     contractBToken = web3.eth.contract(address=XPEPE_Address, abi=BTokenAbi)
 
     proxyContractAToken = web3.eth.contract(address=USDT_Address, abi=proxyATokenAbi)
-    proxyContractBToken = web3.eth.contract(address=XPEPE_Address, abi=proxyBTokenAbi)
+    # proxyContractBToken = web3.eth.contract(address=XPEPE_Address, abi=proxyBTokenAbi)
+    proxyContractBToken = contractBToken
 
     # Get USDT Decimal
     TradingTokenADecimal = proxyContractAToken.functions.decimals().call()
@@ -93,8 +92,8 @@ def InitializeTrade():
         "web3": web3,
         "contractAToken": contractAToken,
         "contractBToken": contractBToken,
-        "contractSushiswap": contractSushiswap,
-        "sushiswapRouterAddress": sushiswapRouterAddress,
+        "contractRouter": contractRouter,
+        "routerAddress": routerAddress,
         "XPEPE_Address": XPEPE_Address,
         "USDT_Address": USDT_Address,
         "proxyContractAToken": proxyContractAToken,
@@ -109,8 +108,8 @@ def tradeSummary():
     logging.info("----------------------------------------------")
     logging.info(log(f"Trading Summary: "))
     logging.info("----------------------------------------------")
-    logging.info(log(f"USDT Token used : {totalUsdtSell}"))
-    logging.info(log(f"Xpepe Token Bought : {totalXpepeBought}"))
+    logging.info(log(f"USDC Token used : {totalUsdtSell}"))
+    logging.info(log(f"PEPEC Token Bought : {totalXpepeBought}"))
     logging.info(log(f"Eth Token used : {totalEthUsedBuy}"))
     logging.info(log(f"Total volume USDT onhold (failed) : {totalRejectedAmountBuy}"))
     logging.info("----------------------------------------------")
@@ -157,14 +156,14 @@ def buyMicroTransaction(
 
                 logging.info(
                     log(
-                        f" On hold {microTxBuyAmount} USDT, Remaining {round(abs(tradeTokenAmount),5)} USDT to go"
+                        f" On hold {microTxBuyAmount} USDC, Remaining {round(abs(tradeTokenAmount),5)} USDC to go"
                     )
                 )
             else:
                 logging.info(log(buy[0]))
                 logging.info(
                     log(
-                        f" After buy, {microTxBuyAmount} USDT, Remaining {round(abs(tradeTokenAmount),5)} USDT to go"
+                        f" After buy, {microTxBuyAmount} USDC, Remaining {round(abs(tradeTokenAmount),5)} USDC to go"
                     )
                 )
 
@@ -206,7 +205,7 @@ def tradeToken(params):
 
         logging.info(
             log(
-                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USDT , current remaining trade volume {round(tradeVolume-tradeEtherAmountUsd,5)} USDT"
+                f"Trade {tradeCount}: buy trade volume: {tradeEtherAmountUsd} USDC , current remaining trade volume {round(tradeVolume-tradeEtherAmountUsd,5)} USDC"
             )
         )
 
@@ -228,7 +227,7 @@ def tradeToken(params):
         latestBuyXpepeWithUsdt = boughtXPEPE
         logging.info(
             log(
-                f" Trade {tradeCount}: after buy, {round(spentUSDT,5)} USDT for {latestBuyXpepeWithUsdt} XPEPE"
+                f" Trade {tradeCount}: after buy, {round(spentUSDT,5)} USDC for {latestBuyXpepeWithUsdt} PEPEC"
             )
         )
         tradeVolume -= tradeEtherAmountUsd
@@ -271,7 +270,6 @@ def randomize():
 
 def runCode():
     params = InitializeTrade()
-
     global tradeCycleJob
 
     # not recommended to put below 30s, buy sell have a delay of 5s for transaction verification

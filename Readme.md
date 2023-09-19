@@ -47,11 +47,11 @@ Setting
 
 
 # Config File
-# Add Your Wallet Address here by removing whole line
+// Add Your Wallet Address here by removing whole line
 YOUR_WALLET_ADDRESS = [
 ]
 
-# Add Your Private Key here by removing whole line
+// Add Your Private Key here by removing whole line
 YOUR_PRIVATE_KEY = [
 ]
 
@@ -67,23 +67,23 @@ WAIT_FOR_TX_RECEIPT_TIMEMOUT_SECONDS = 120
 WAIT_FOR_TX_RECEIPT_POLL_FREQUENCY = 0.1
 GAS_PRICE_IN_WEI = 6
 
-# Micro Transaction Parameters
-# basically split one big transaction volume into rand small micro trasaction
+// Micro Transaction Parameters
+// basically split one big transaction volume into rand small micro trasaction
 PER_TRANSACTION_VOLUME_UPPER = 1
 PER_TRANSACTION_VOLUME_LOWER = 1
 
-# Buy
+// Buy
 MAX_BUY_MICROTRANSACTION_COUNT = 5
 MIN_BUY_MICROTRANSACTION_COUNT = 3
 
-# SELL
+// SELL
 MAX_SELL_MICROTRANSACTION_COUNT = 1
 MIN_SELL_MICROTRANSACTION_COUNT = 1
 
 MICROTRANSACTION_PER_TX_UPPPER_PERCENTILE = 3  # %
 MICROTRANSACTION_PER_TX_LOWER_PERCENTILE = 1  # %
 
-# to enable manual mode & override tx receipt with pre defined tx hash if set to true
+// to enable manual mode & override tx receipt with pre defined tx hash if set to true
 DEBUGGING = False
 SLIPPAGE = 0.3  # not in use currently
 
